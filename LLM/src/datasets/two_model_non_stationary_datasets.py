@@ -118,7 +118,8 @@ def get_tvhh(split:str, silent:bool = False,
              init_reward_index:int=0, final_reward_index:int=1,
              device:str='cuda', max_length:int=256,
              test_changes_only:bool=False,
-             train_changes_percent:Union[False, float]=False,
+             # train_changes_percent:Union[False, float]=False,
+             train_changes_percent:Union[bool, float]=False,
              **kwargs):
     
     """
@@ -408,7 +409,8 @@ def get_tvhh2(split:str, silent:bool = False,
              changepoint:int=0, test_dataset:bool=False,
              init_reward_index:int=0, final_reward_index:int=1,
              device:str='cuda', max_length:int=256,
-             train_changes_percent:Union[False, float]=False,
+             # train_changes_percent:Union[False, float]=False,
+            train_changes_percent:Union[bool, float]=False,
              train_test_split:float=0.2, testing_mode=False,
              gradual:bool=False, **kwargs):
     

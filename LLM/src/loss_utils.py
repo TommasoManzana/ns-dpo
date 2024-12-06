@@ -43,6 +43,33 @@ def preference_loss(policy_chosen_logps: torch.FloatTensor,
     if loss_config.name == 'ipo':
         beta = loss_config['beta']
         losses = (logits - 1/(2 * beta)) ** 2  # Eq. 17 of https://arxiv.org/pdf/2310.12036v2.pdf
+
+    elif loss_config.name == 'ns_ipo':
+        
+        assert timestep is not None, 'For ns_ipo loss timestep cannot be None'
+        
+        beta = loss_config['beta']
+        gamma = loss_config['gamma']
+        norm = loss_config['normalise']
+        current_time = loss_config['current_time']
+        sample = loss_config['sample']
+    
+        if sample:
+            gammas = torch.ones(len(timestep))
+        else: 
+            exponents = current_time - timestep - 1
+            gammas = gamma ** exponents
+    
+        if norm: #Normalise the effect of the gammas on the grad norm:
+            norm_term = (1/gammas.mean())
+            # norm_term = (1/gammas.sum())
+        else:
+            norm_term = torch.tensor([1])
+            
+        norm_term = norm_term.to(timestep.device)
+        gammas = gammas.to(timestep.device)
+
+        losses = norm_term * gammas * (logits - 1/(2 * beta)) ** 2  # Eq. 17 of https://arxiv.org/pdf/2310.12036v2.pdf
     
     elif loss_config.name == 'ns_dpo':
         
@@ -60,8 +87,9 @@ def preference_loss(policy_chosen_logps: torch.FloatTensor,
             exponents = current_time - timestep - 1
             gammas = gamma ** exponents
     
-        if norm: #Normalise the affect of the gammas on the grad norm:
-            norm_term = (1/gammas.sum())
+        if norm: #Normalise the effect of the gammas on the grad norm:
+            norm_term = (1/gammas.mean())
+            # norm_term = (1/gammas.sum())
         else:
             norm_term = torch.tensor([1])
             

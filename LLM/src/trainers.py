@@ -48,7 +48,7 @@ import json
 import functools
 from typing import Optional, Dict, List, Union, Tuple
 
-REQUIRE_TIMESTEP = ["ns_dpo", "sw_dpo"]
+REQUIRE_TIMESTEP = ["ns_dpo", "ns_ipo", "sw_dpo"]
 
 class BasicTrainer(object):
     def __init__(self, policy: nn.Module, config: DictConfig, seed: int, run_dir: str,
@@ -105,7 +105,7 @@ class BasicTrainer(object):
         
         #Use the passed data selector argument
         self.data_selector = data_selector
-        self.preference_loss_names = {'dpo', 'ipo', 'ns_dpo', 'sw_dpo'}
+        self.preference_loss_names = {'dpo', 'ipo', 'ns_dpo', 'ns_ipo', 'sw_dpo'}
 
         self.sft_loss_names = {'sft', 'ns_sft'}
         
@@ -237,7 +237,7 @@ class BasicTrainer(object):
         None.
 
         """
-        
+
         if self.example_counter % self.config.eval_every == 0 and (self.example_counter > 0 or self.config.do_first_eval):
             rank0_print(f'Running evaluation after {self.example_counter} train examples')
             self.policy.eval()
@@ -331,9 +331,17 @@ class BasicTrainer(object):
         """Begin either SFT or DPO training, with periodic evaluation."""
 
         rank0_print(f'Using {self.config.optimizer} optimizer')
-        self.optimizer = getattr(torch.optim, self.config.optimizer)(self.policy.parameters(), lr=self.config.lr)
+        if self.config.optimizer == "RMSprop":
+            self.optimizer = getattr(torch.optim, self.config.optimizer)(
+                self.policy.parameters(), 
+                lr=self.config.lr,
+                alpha=self.config.opt_alpha, 
+                eps=self.config.opt_eps, 
+            )
+        else:
+            self.optimizer = getattr(torch.optim, self.config.optimizer)(self.policy.parameters(), lr=self.config.lr)
         self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lambda step: min(1.0, (step + 1) / (self.config.warmup_steps + 1)))
-    
+        
         torch.manual_seed(self.seed)
         np.random.seed(self.seed)
         random.seed(self.seed)
@@ -366,7 +374,7 @@ class BasicTrainer(object):
             #### BEGIN TRAINING ####
             
             self.policy.train()
-
+                
             start_time = time.time()
             batch_metrics = defaultdict(list)
             
@@ -382,9 +390,10 @@ class BasicTrainer(object):
 
             grad_norm = self.clip_gradient()
             self.optimizer.step()
+            
             self.scheduler.step()
             self.optimizer.zero_grad()
-
+            
             step_time = time.time() - start_time
             examples_per_second = batch_size / step_time
             batch_metrics['examples_per_second'].append(examples_per_second)

@@ -65,6 +65,7 @@ def apply_armoRM(
 ):
     prefs_all = list()
     logits_all = list()
+    scores_all = list()
 
     for idx in range(data.shape[0]):
         inputs = data[col_prompt].iloc[idx]
@@ -80,10 +81,11 @@ def apply_armoRM(
                 preference_scoreB = outputB.score.cpu().float()  
                 
                 logit = float(preference_scoreA - preference_scoreB)
-                comparison_result = float((logit > 0) * 1.0)
+                comparison_result = float((logit > 0) * 1.0 + (logit == 0) * 0.5)
                 
                 prefs_all.append(comparison_result)
                 logits_all.append(logit)
+                scores_all.append([preference_scoreA.cpu().float(), preference_scoreB.cpu().float()])
             
                 del idsA
                 del idsB
@@ -94,7 +96,7 @@ def apply_armoRM(
             print(f"[{(idx + 1)} items] GPU VRAM {torch.cuda.memory_allocated()/1024/1024/1024} GB allocated")
             torch.cuda.empty_cache()
     torch.cuda.empty_cache()
-    return prefs_all, logits_all
+    return prefs_all, logits_all, scores_all
 
 '''
     PairRM, Better-PairRM
@@ -166,7 +168,7 @@ def apply_pairrm(
                 encodings = {k:v.to(pairrm.device) for k,v in encodings.items()}
                 outputs = pairrm(**encodings)
                 logits = outputs.logits.tolist()
-                comparison_results = (outputs.logits > 0) * 1.0
+                comparison_results = ((outputs.logits > 0) * 1.0 + (outputs.logits == 0) * 0.5)
                 prefs_all += comparison_results.cpu().tolist()
                 logits_all += logits
             
@@ -179,4 +181,4 @@ def apply_pairrm(
             print(f"[{(idx_mult + 1) * batch_size_prompts} items] GPU VRAM {torch.cuda.memory_allocated()/1024/1024/1024} GB allocated")
             torch.cuda.empty_cache()
     torch.cuda.empty_cache()
-    return prefs_all, logits_all
+    return prefs_all, logits_all, None

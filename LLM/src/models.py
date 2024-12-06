@@ -2,7 +2,7 @@
 """
 Created on Mon Mar 18 14:04:33 2024
 
-@author: William
+@author: William, Seongho
 """
 
 import json
@@ -61,10 +61,10 @@ class ModelGenerator:
             **model_kwargs)
         
         policy.gradient_checkpointing_enable()
+        policy = prepare_model_for_kbit_training(policy)
         
         #Setup model with LoRA:
         if model_config.use_lora: 
-            policy = prepare_model_for_kbit_training(policy)
             
             target_modules = model_config.lora_target_modules
             
@@ -127,27 +127,28 @@ class ModelGenerator:
         model_kwargs = {'device_map': 'balanced'} if config.trainer == 'BasicTrainer' else {}
         
         compute_dtype = getattr(torch, dtype)
-        bnb_config = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_use_double_quant=True,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_compute_dtype=dtype
-        )
-        
-        #Load model from Huggingface:
-        policy = transformers.AutoModelForCausalLM.from_pretrained(
-            model_name, 
-            cache_dir=get_local_dir(config.local_dirs), 
-            low_cpu_mem_usage=True,
-            quantization_config=bnb_config,
-            output_hidden_states=True,
-            trust_remote_code=True,
-            **model_kwargs)
-        
-        policy.gradient_checkpointing_enable()
         
         #Setup model with LoRA:
         if use_lora: 
+            print("#####\n USING LORA \n ######")
+            bnb_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_use_double_quant=True,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_compute_dtype=dtype
+            )
+            
+            #Load model from Huggingface:
+            policy = transformers.AutoModelForCausalLM.from_pretrained(
+                model_name, 
+                cache_dir=get_local_dir(config.local_dirs), 
+                low_cpu_mem_usage=True,
+                quantization_config=bnb_config,
+                output_hidden_states=True,
+                trust_remote_code=True,
+                **model_kwargs)
+            
+            policy.gradient_checkpointing_enable()
             policy = prepare_model_for_kbit_training(policy)
             
             target_modules = config.model.lora_target_modules
@@ -166,8 +167,20 @@ class ModelGenerator:
             #Apply lora config to policy model:
             policy = get_peft_model(policy, loraconfig)
             policy = self.manually_map_lora_to_dtype(policy, getattr(torch,dtype))
-        
+        else:
+            print("#####\n NOT USING LORA \n ######")
+            #Load model from Huggingface:
+            policy = transformers.AutoModelForCausalLM.from_pretrained(
+                model_name, 
+                cache_dir=get_local_dir(config.local_dirs), 
+                low_cpu_mem_usage=True,
+                output_hidden_states=True,
+                trust_remote_code=True,
+                torch_dtype=dtype,
+                **model_kwargs)
             
+            policy.gradient_checkpointing_enable()
+                
         print('Current GPU usage')
         
         for dev in range(torch.cuda.device_count()):
@@ -247,7 +260,7 @@ class ModelGenerator:
             
             models = {'sft_model': sft_model}
         
-        elif config.loss.name in ['dpo', 'ipo', 'ns_dpo', 'sw_dpo']:
+        elif config.loss.name in ['dpo', 'ipo', 'ns_dpo', 'ns_ipo', 'sw_dpo']:
 
             #create main policy:
             policy_model = self.create_policy(config.model.name_or_path, 
@@ -266,7 +279,7 @@ class ModelGenerator:
                                               lora_rank=config.model.lora_rank,
                                               lora_alpha=config.model.lora_alpha,
                                               lora_dropout=config.model.lora_dropout)
-            
+
             policy_device = policy_model.device
             ref_device = ref_model.device
             
