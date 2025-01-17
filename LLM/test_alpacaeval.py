@@ -14,6 +14,10 @@ from vllm import LLM, SamplingParams
 from pathlib import Path
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from vllm.lora.request import LoRARequest
+from transformers import BitsAndBytesConfig
+from omegaconf import OmegaConf
+from peft import LoraConfig, PeftModel, get_peft_model
+from peft.tuners.lora import LoraLayer
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 os.environ['CUDA_VISIBLE_DEVICES'] = "0"
@@ -24,7 +28,9 @@ parser.add_argument("--original_model", type=str, required=True)
 parser.add_argument("--name_model", type=str, default="ufbf-p1.0-cp81-nsdpo-g0.85-b0.1", required=True)
 parser.add_argument("--path_model", type=str, required=True)
 parser.add_argument("--batch_size", type=int, default=32)
+parser.add_argument("--use_lora", action="store_true", default=False)
 parser.add_argument("--seed", type=int, default=2024)
+
 
 args = parser.parse_args()
 
@@ -77,7 +83,8 @@ name_file = args.name_model
 # max_examples = 64 # Set this to a positive value to test on smaller number of prompts
 max_examples = -1 # Set this to a positive value to test on smaller number of prompts
 
-USE_LORA = False
+# USE_LORA = False
+USE_LORA = args.use_lora
 path_savedir = "./results_alpacaeval/"
 model_dir = path_savedir + name_file
 os.makedirs(model_dir, exist_ok=True)
@@ -90,11 +97,27 @@ tokenizer.pad_token = tokenizer.eos_token
 
 try:
     if path_llm != "none":
-        llm = LLM(
-          model=model_dir, 
-          tokenizer=args.original_model,
-          tensor_parallel_size=1,
-        )
+        if USE_LORA:
+            # bnb_config = BitsAndBytesConfig(
+            #     load_in_4bit=True,
+            #     bnb_4bit_use_double_quant=True,
+            #     bnb_4bit_quant_type="nf4",
+            #     bnb_4bit_compute_dtype=torch.bfloat16
+            # )
+            llm = LLM(
+              model=model_dir, 
+              tokenizer=args.original_model,
+              tensor_parallel_size=1,
+              dtype=torch.bfloat16,
+              quantization="bitsandbytes", 
+              load_format="bitsandbytes"
+            )
+        else:
+            llm = LLM(
+              model=model_dir, 
+              tokenizer=args.original_model,
+              tensor_parallel_size=1,
+            )
     else:
         llm = LLM(
           model=args.original_model,
@@ -103,12 +126,57 @@ try:
         )
     print(f"Model at {model_dir} successfully loaded")
 except:
-    model = AutoModelForCausalLM.from_pretrained(
-        args.original_model
-    ).to(device)
-    path_pt = path_llm + "/LATEST/policy.pt"
-    model.load_state_dict(torch.load(path_pt)["state"])
-    model.save_pretrained(model_dir)
+    if USE_LORA:
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_compute_dtype=torch.bfloat16
+        )
+        
+        base_model = transformers.AutoModelForCausalLM.from_pretrained(
+            args.original_model,
+            quantization_config=bnb_config,   
+        )
+        
+        # Load LoRA configuration
+        config_lora = OmegaConf.load(args.config_path1)
+        loraconfig = LoraConfig(
+            r=config_lora.lora_rank,
+            lora_alpha=config_lora.lora_alpha,
+            target_modules=config_lora.lora_target_modules,
+            # lora_dropout=config_lora.lora_dropout,
+            lora_dropout=0.0,
+            bias="none",
+            task_type="CAUSAL_LM"
+        )
+        model = PeftModel(base_model, loraconfig)
+        # model = get_peft_model(base_model, loraconfig)
+        
+        # Load the state dict
+        path_pt = path_llm + "/LATEST/policy.pt"
+        model.load_state_dict(torch.load(path_pt)["state"])
+        # model.save_pretrained(model_dir)
+        
+        # state_dict = torch.load(models[i])  # path to .pt file
+        # state_dict = state_dict['state']
+
+        # inspect_lora_weights(model, state_dict, print_all=True)
+        
+        # model.load_state_dict(state_dict)
+        model = model.merge_and_unload()
+        model.bfloat16()
+        model.save_pretrained(model_dir)
+        del model
+        del base_model
+            
+    else:
+        model = AutoModelForCausalLM.from_pretrained(
+            args.original_model
+        ).to(device)
+        path_pt = path_llm + "/LATEST/policy.pt"
+        model.load_state_dict(torch.load(path_pt)["state"])
+        model.save_pretrained(model_dir)
     print(f"VLLM model saved at {model_dir}")
 
     llm = LLM(
