@@ -5,7 +5,7 @@ name: ns_dpo
 #   the reference model
 beta: ???
 gamma: ???
-normalise: true
+normalise: false
 sample: false
 
 # Large T in the paper
