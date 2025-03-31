@@ -13,11 +13,11 @@ import datasets
 from vllm import LLM, SamplingParams
 from pathlib import Path
 from transformers import AutoTokenizer, AutoModelForCausalLM
-from vllm.lora.request import LoRARequest
+# from vllm.lora.request import LoRARequest
 from transformers import BitsAndBytesConfig
 from omegaconf import OmegaConf
-from peft import LoraConfig, PeftModel, get_peft_model
-from peft.tuners.lora import LoraLayer
+# from peft import LoraConfig, PeftModel, get_peft_model
+# from peft.tuners.lora import LoraLayer
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 os.environ['CUDA_VISIBLE_DEVICES'] = "0"
@@ -123,6 +123,7 @@ try:
           model=args.original_model,
           tokenizer=args.original_model,
           tensor_parallel_size=1,
+          rope_scaling={"type":"dynamic", "factor": 2.0}
         )
     print(f"Model at {model_dir} successfully loaded")
 except:
@@ -183,6 +184,7 @@ except:
       model=model_dir, 
       tokenizer=args.original_model,
       tensor_parallel_size=1,
+      rope_scaling={"type":"dynamic", "factor": 2.0}
     )
     print(f"Newly created VLLM model saved at {model_dir} loaded")
 
