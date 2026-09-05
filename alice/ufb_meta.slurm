@@ -15,7 +15,8 @@
 # Env overrides: WANDB=0 disables W&B (default on, offline; sync from a login node).
 set -e
 source $HOME/nsdpo-scripts/env.sh
-cd $HOME/ns-dpo/LLM
+REPO=${REPO:-$HOME/ns-dpo}
+cd $REPO/LLM
 
 LOSS=${1:?loss (ns_dpo|dpo)}
 TCP=${2:?tcp}
