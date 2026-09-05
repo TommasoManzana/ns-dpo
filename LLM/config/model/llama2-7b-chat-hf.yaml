@@ -12,7 +12,7 @@ lora_rank: 8
 lora_alpha: 32
 lora_dropout: 0.05
 lora_target_modules:
-  - q-proj 
+  - q_proj
   - v_proj 
   - k_proj 
   - o_proj 

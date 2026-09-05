@@ -81,7 +81,7 @@ def ufb_into_dict(
     col_pref
 ):
     df_dict = ufb_process_into_dict(dataset)
-    print(df_dict)
+    # print(df_dict)  # ALICE: dumped the whole dataset (~40MB) into every log
 
     output_dict = dict()
     
