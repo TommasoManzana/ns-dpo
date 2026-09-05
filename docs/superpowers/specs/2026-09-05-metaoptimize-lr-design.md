@@ -20,7 +20,7 @@ ICML 2025) — base update (SGD/SGDm/RMSProp/AdamW/Lion), condensed trace
      `meta_stepsize`, `normalizer_param_meta`, `momentum_param_meta`,
      `weight_decay_meta`, `Lion_beta2_meta`; `alpha0`, `discount`
      (upstream's γ — renamed to avoid NS-DPO's γ), `stepsize_groups`
-     (`scalar` or list of group sizes).
+     (`scalar` only in this iteration; blockwise raises NotImplementedError).
    - `step() -> dict`: reads `p.grad` (already accumulated over microbatches and
      clipped by the trainer), applies base + meta update, returns
      `{"meta/alpha", "meta/beta", "meta/h_dot_g"}` (scalar case; per-block lists
@@ -55,4 +55,4 @@ ICML 2025) — base update (SGD/SGDm/RMSProp/AdamW/Lion), condensed trace
 
 ## Out of scope
 
-Blockwise groups on Llama-2, meta-learning β/γ, resuming meta state, FSDP trainer.
+Blockwise step-size groups (upstream supports them; not ported yet), meta-learning β/γ, resuming meta state, FSDP trainer.

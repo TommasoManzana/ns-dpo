@@ -82,6 +82,23 @@ trainer: BasicTrainer
 # The optimizer to use; we use RMSprop because it works about as well as Adam and is more memory-efficient
 optimizer: RMSprop
 
+# MetaOptimize step-size learning (optimizer=MetaOptimize). Base side mirrors the
+# torch RMSprop baseline; meta side follows the upstream README example. alpha0
+# defaults to lr so the meta-learned step size starts from the fixed-lr value.
+# `discount` is MetaOptimize's own gamma (NOT the NS-DPO loss gamma).
+meta:
+  alg_base: RMSProp
+  normalizer_param_base: 0.99
+  weight_decay_base: 0.0
+  alg_meta: Lion
+  meta_stepsize: 1e-3
+  momentum_param_meta: 0.99
+  Lion_beta2_meta: 0.9
+  weight_decay_meta: 0.0
+  alpha0: ${lr}
+  discount: 1.0
+  stepsize_groups: scalar
+
 # number of linear warmup steps for the learning rate
 warmup_steps: 150
 

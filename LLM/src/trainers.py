@@ -3,7 +3,7 @@ torch.backends.cuda.matmul.allow_tf32 = True
 import torch.nn.functional as F
 import torch.nn as nn
 import transformers
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 
 import torch.distributed as dist
 from torch.distributed.fsdp import (
@@ -331,8 +331,17 @@ class BasicTrainer(object):
         """Begin either SFT or DPO training, with periodic evaluation."""
 
         rank0_print(f'Using {self.config.optimizer} optimizer')
-        self.optimizer = getattr(torch.optim, self.config.optimizer)(self.policy.parameters(), lr=self.config.lr)
-        self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lambda step: min(1.0, (step + 1) / (self.config.warmup_steps + 1)))
+        if self.config.optimizer == 'MetaOptimize':
+            # meta-learned step size over the trainable (LoRA) params; no LR schedule,
+            # alpha is what is being learned (see src/metaoptimize.py)
+            from src.metaoptimize import MetaOptimizeHF
+            meta_cfg = OmegaConf.to_container(self.config.meta, resolve=True)
+            self.optimizer = MetaOptimizeHF.from_model(self.policy, meta_cfg)
+            self.scheduler = None
+            rank0_print(f'MetaOptimize over {len(self.optimizer.params)} trainable tensors, config {meta_cfg}')
+        else:
+            self.optimizer = getattr(torch.optim, self.config.optimizer)(self.policy.parameters(), lr=self.config.lr)
+            self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lambda step: min(1.0, (step + 1) / (self.config.warmup_steps + 1)))
     
         torch.manual_seed(self.seed)
         np.random.seed(self.seed)
@@ -381,9 +390,13 @@ class BasicTrainer(object):
                     batch_metrics[k].extend(v)
 
             grad_norm = self.clip_gradient()
-            self.optimizer.step()
-            self.scheduler.step()
+            step_metrics = self.optimizer.step()
+            if self.scheduler is not None:
+                self.scheduler.step()
             self.optimizer.zero_grad()
+            if step_metrics:  # MetaOptimize reports alpha/beta/h.g per step
+                for k, v in step_metrics.items():
+                    batch_metrics[k].append(v)
 
             step_time = time.time() - start_time
             examples_per_second = batch_size / step_time
@@ -535,8 +548,9 @@ class FSDPTrainer(BasicTrainer):
         dist.barrier()
 
         if self.rank == 0:
-            scheduler_state_dict = self.scheduler.state_dict()
-            self.write_state_dict(self.example_counter, scheduler_state_dict, metrics, 'scheduler.pt', output_dir)
+            if self.scheduler is not None:
+                scheduler_state_dict = self.scheduler.state_dict()
+                self.write_state_dict(self.example_counter, scheduler_state_dict, metrics, 'scheduler.pt', output_dir)
         dist.barrier()
         
 
