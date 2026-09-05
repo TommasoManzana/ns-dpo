@@ -12,3 +12,12 @@ if [ -z "$ONLINE" ]; then
 fi
 export HF_HOME=$HOME/.cache/huggingface
 export PYTHONUNBUFFERED=1
+
+# Inside a SLURM job: keep temp files (wandb service port file etc.) on the shared
+# home instead of node-local /scratchdata — the wandb service failed to create its
+# port file there on a gpu-mig-40g node (job 4904632). Tiny files; cleaned by hand.
+if [ -n "$SLURM_JOB_ID" ]; then
+    export TMPDIR=$HOME/nsdpo-cache/tmp/$SLURM_JOB_ID
+    mkdir -p "$TMPDIR"
+fi
+export WANDB__SERVICE_WAIT=300
