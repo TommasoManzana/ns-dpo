@@ -22,7 +22,7 @@ python3 train.py model=tiny-mistral datasets=[nsgo-2c] \
     batch_size=8 eval_batch_size=8 n_epochs=null n_examples=256 n_eval_examples=32 \
     trainer=BasicTrainer sample_during_eval=false \
     "local_dirs=[$HOME/nsdpo-cache]" \
-    ++wandb.enabled=false ++test_dataset=false \
+    ++wandb.enabled=true ++wandb.entity=manzana-tommaso-leiden-university ++wandb.project=nsdpo ++test_dataset=false \
     ++dataset.timesteps=100 ++dataset.force_new=true ++dataset.sample_to_size=10000 \
     ++dataset.coef_shift=1.0 ++dataset.threshold_high=0.99 ++dataset.threshold_low=0.01 \
     ++dataset.country2=Germany ++dataset.min_diff=0.2
