@@ -52,7 +52,7 @@ python3 train.py model=llama2-7b-chat-hf datasets=[ufb-2rm] \
     model.archive=$ARCHIVE \
     exp_name=$EXP_NAME gradient_accumulation_steps=2 eval_every=1000 \
     batch_size=24 eval_batch_size=12 trainer=BasicTrainer sample_during_eval=false \
-    "local_dirs=[$HOME/nsdpo-cache]" \
+    "local_dirs=[$HOME/nsdpo-cache]" n_eval_examples=${N_EVAL:-2000} \
     $WB ++test_dataset=false \
     ++dataset.path_train=$DATA/tcp${TCP}_rho${RHO}_train.pkl \
     ++dataset.path_test=$DATA/tcp${TCP}_rho${RHO}_test.pkl \
