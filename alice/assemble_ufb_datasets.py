@@ -45,6 +45,8 @@ def main():
     ap.add_argument("--scored-dir", required=True)
     ap.add_argument("--out-dir", required=True)
     ap.add_argument("--seed", type=int, default=13)
+    ap.add_argument("--n-test", type=int, default=N_TEST,
+                    help="test pairs per setting (paper: 500); clamped to the scored test pool")
     ap.add_argument("--sample", action="store_true",
                     help="Bernoulli-sample preferences from RM logits instead of "
                          "using deterministic argmax preferences")
@@ -53,6 +55,8 @@ def main():
     os.makedirs(args.out_dir, exist_ok=True)
     train_pool = merge(args.scored_dir, "train")
     test_pool = merge(args.scored_dir, "test")
+    n_test = min(args.n_test, len(test_pool))
+    print(f"test pairs per setting: {n_test} (requested {args.n_test}, pool {len(test_pool)})")
     n_disagree = (train_pool.prefs_pairrm != train_pool.prefs_armorm).sum()
     print(f"train pool {len(train_pool)} rows, {n_disagree} RM-disagreeing "
           f"({n_disagree/len(train_pool):.1%}); test pool {len(test_pool)} rows")
@@ -67,7 +71,7 @@ def main():
             train_pool, "prefs_pairrm", "prefs_armorm",
             num_total=N_TRAIN, num_aligned=N_TRAIN - need,
         ).reset_index(drop=True)
-        df_test = test_pool.sample(n=N_TEST, random_state=args.seed).reset_index(drop=True)
+        df_test = test_pool.sample(n=n_test, random_state=args.seed).reset_index(drop=True)
 
         for tcp in TCPS:
             np.random.seed(args.seed)

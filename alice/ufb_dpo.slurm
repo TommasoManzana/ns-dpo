@@ -24,7 +24,7 @@ SEED=${5:-2021}
 LR=${6:-1e-5}
 GAMMA=${7:-0.95}
 WANDB=${WANDB:-1}
-DATA=$HOME/nsdpo-data/ufb_2rm
+DATA=${DATA:-$HOME/nsdpo-data/ufb_2rm}   # override with --export=ALL,DATA=... (e.g. ufb_2rm_v2: 2k-pair test sets)
 
 if [ "$LOSS" = "ns_dpo" ]; then
     LOSS_ARGS="loss=ns_dpo loss.gamma=$GAMMA loss.current_time=101 loss.beta=0.1"

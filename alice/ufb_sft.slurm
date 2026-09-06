@@ -18,7 +18,7 @@ TCP=${1:-81}
 RHO=${2:-0.9}
 LR=${3:-1e-5}
 WANDB=${WANDB:-1}
-DATA=$HOME/nsdpo-data/ufb_2rm
+DATA=${DATA:-$HOME/nsdpo-data/ufb_2rm}   # override with --export=ALL,DATA=... (e.g. ufb_2rm_v2: 2k-pair test sets)
 EXP_NAME=ufb-sft-llama2_tcp${TCP}_rho${RHO}_lr${LR}
 [ "$WANDB" = "1" ] && WB="++wandb.enabled=true ++wandb.entity=manzana-tommaso-leiden-university ++wandb.project=nsdpo" \
                    || WB="++wandb.enabled=false"
