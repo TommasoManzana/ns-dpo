@@ -7,6 +7,8 @@
 
 # NS-DPO with a MetaOptimize-learned step size (Llama-2-7b-chat, LoRA).
 # Same arguments as ufb_dpo.slurm; the 6th arg (LR) is the starting alpha0.
+# Args 8+ are passed to train.py verbatim (e.g. meta.meta_stepsize=1e-2).
+# Env TAG=<suffix> is appended to the experiment name to keep runs distinguishable.
 # Usage:
 #   sbatch [-p PARTITION -t TIME] ufb_dpo.slurm <ns_dpo|dpo> <TCP> <RHO> <SFT_DIR> [SEED] [LR] [GAMMA]
 # Defaults: seed 2021, lr 1e-5 (repo default 5e-7 does NOT learn with LoRA), gamma 0.95.
@@ -25,15 +27,17 @@ SFT_DIR=${4:?sft run dir name}
 SEED=${5:-2021}
 LR=${6:-1e-5}
 GAMMA=${7:-0.95}
+EXTRA="${@:8}"
+TAG=${TAG:-}
 WANDB=${WANDB:-1}
 DATA=$HOME/nsdpo-data/ufb_2rm
 
 if [ "$LOSS" = "ns_dpo" ]; then
     LOSS_ARGS="loss=ns_dpo loss.gamma=$GAMMA loss.current_time=101 loss.beta=0.1"
-    EXP_NAME=ufb-ns_dpo-g${GAMMA}_tcp${TCP}_rho${RHO}_s${SEED}_meta-a0${LR}
+    EXP_NAME=ufb-ns_dpo-g${GAMMA}_tcp${TCP}_rho${RHO}_s${SEED}_meta-a0${LR}${TAG}
 else
     LOSS_ARGS="loss=dpo loss.beta=0.1"
-    EXP_NAME=ufb-dpo_tcp${TCP}_rho${RHO}_s${SEED}_meta-a0${LR}
+    EXP_NAME=ufb-dpo_tcp${TCP}_rho${RHO}_s${SEED}_meta-a0${LR}${TAG}
 fi
 [ "$WANDB" = "1" ] && WB="++wandb.enabled=true ++wandb.entity=manzana-tommaso-leiden-university ++wandb.project=nsdpo" \
                    || WB="++wandb.enabled=false"
@@ -51,6 +55,7 @@ python3 train.py model=llama2-7b-chat-hf datasets=[ufb-2rm] \
     "local_dirs=[$HOME/nsdpo-cache]" \
     $WB ++test_dataset=false \
     ++dataset.path_train=$DATA/tcp${TCP}_rho${RHO}_train.pkl \
-    ++dataset.path_test=$DATA/tcp${TCP}_rho${RHO}_test.pkl
+    ++dataset.path_test=$DATA/tcp${TCP}_rho${RHO}_test.pkl \
+    $EXTRA
 
 echo "DPO_DONE exp=$EXP_NAME"
