@@ -1,6 +1,8 @@
 name_or_path: openaccess-ai-collective/tiny-mistral
 tokenizer_name_or_path: openaccess-ai-collective/tiny-mistral
 archive: null
+# optional separate checkpoint for the reference model (default: same as archive); used for re-scoring
+reference_archive: null
 
 # the name of the module class to wrap with FSDP; should be something like
 #   e.g. GPT2Block, GPTNeoXLayer, LlamaDecoderLayer, etc.

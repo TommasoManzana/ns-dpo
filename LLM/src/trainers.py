@@ -323,7 +323,12 @@ class BasicTrainer(object):
                 if self.config.debug:
                     rank0_print('skipping save in debug mode')
                 else:
-                    output_dir = os.path.join(self.run_dir, f'step-{self.example_counter}')
+                    # ALICE: a full step-N snapshot (~3.7 GB for Llama-2-7B) at every eval
+                    # filled the home quota (370 dirs); keep only LATEST unless asked.
+                    if self.config.get('save_intermediate_checkpoints', False):
+                        output_dir = os.path.join(self.run_dir, f'step-{self.example_counter}')
+                    else:
+                        output_dir = os.path.join(self.run_dir, 'LATEST')
                     rank0_print(f'creating checkpoint to write to {output_dir}...')
                     self.save(output_dir, mean_eval_metrics)
 

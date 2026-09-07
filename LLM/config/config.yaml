@@ -108,6 +108,9 @@ activation_checkpointing: false
 # evaluate and save model every eval_every steps
 eval_every: 20_000
 
+# also keep a step-N snapshot at every eval (default: only LATEST; each snapshot is ~3.7 GB for a 7B LoRA policy)
+save_intermediate_checkpoints: false
+
 # prevent wandb from logging more than once per minimum_log_interval_secs
 minimum_log_interval_secs: 1.0
 

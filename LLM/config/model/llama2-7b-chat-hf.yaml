@@ -1,6 +1,8 @@
 name_or_path: NousResearch/Llama-2-7b-chat-hf
 tokenizer_name_or_path: null
 archive: null
+# optional separate checkpoint for the reference model (default: same as archive); used for re-scoring
+reference_archive: null
 block_name: LlamaDecoderLayer
 
 policy_dtype: bfloat16
