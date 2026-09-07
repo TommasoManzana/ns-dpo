@@ -15,7 +15,9 @@
 # reward margin, independent of the loss's gamma/beta).
 #   sbatch --array=0-$((N-1)) --export=ALL,REF_SFT=<sft run dir name> rescore.slurm <list file>
 # Always run task 0 alone first and check its accuracy is not 0 before the rest.
-set -e
+# Needs a >=40 GB GPU (two 7B models + eval): on gpu-short pass --gres=gpu:a100:1
+# (L4 24 GB nodes OOM); node872's NFS mount is broken (2026-09-07): --exclude=node872.
+set -e -o pipefail   # pipefail: a python failure must fail the job even through the grep filter
 LIST=${1:?file listing run dir names (under ~/nsdpo-cache/s4206355)}
 REF_SFT=${REF_SFT:?set REF_SFT=<sft run dir name> (the reference model)}
 REF_ARCHIVE=$HOME/nsdpo-cache/s4206355/$REF_SFT/LATEST/policy.pt
