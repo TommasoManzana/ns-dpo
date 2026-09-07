@@ -41,4 +41,6 @@ python3 train.py model=llama2-7b-chat-hf datasets=[ufb-2rm] \
     "local_dirs=[$HOME/nsdpo-cache]" ++wandb.enabled=false ++test_dataset=false \
     ++dataset.path_train=$DATA/tcp${TCP}_rho${RHO}_train.pkl \
     ++dataset.path_test=$DATA/tcp${TCP}_rho${RHO}_test.pkl 2>&1 | grep --line-buffered -aE "eval after 0|Loaded .* eval batches|REFERENCE|Traceback|Error"
+# the one-batch "training" run above leaves a 3.7 GB run dir we never want: remove it
+rm -rf $HOME/nsdpo-cache/s4206355/rescore_${RUN}_*
 echo "RESCORE_DONE run=$RUN"
