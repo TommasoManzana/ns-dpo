@@ -275,20 +275,10 @@ class ModelGenerator:
                 assert config.model.archive is not None,\
                     'config.model.archive should be provided when training with PO methods'
             
-            #Load the previous model state dict and upload to policy and reference model:
-            if config.model.archive is not None:
-                
-                #Load state dict:
-                state_dict = torch.load(config.model.archive, map_location='cpu')
-                step, metrics = state_dict['step_idx'], state_dict['metrics']
-        
-                #Load state dict into policy and ref model:
-                print(f'loading pre-trained weights at step {step} from\
-                      {config.model.archive} with metrics {json.dumps(metrics, indent=2)}')
-                policy_model.load_state_dict(state_dict['state'])
-                ref_model.load_state_dict(state_dict['state'])
-                
-                print('Loaded pretrained weights')
+            #Load the previous model state dict into policy and reference model
+            #(reference may come from a separate archive, e.g. for re-scoring):
+            load_archives(policy_model, ref_model, config.model.archive,
+                          config.model.get('reference_archive', None))
             
             #Ensure the device hasn't changed at this step:
             assert (policy_model.device == policy_device) and (ref_model.device == ref_device), \
@@ -303,3 +293,23 @@ class ModelGenerator:
         
         return models    
     
+
+
+def load_archives(policy_model, ref_model, archive, reference_archive=None):
+    """Load saved weights into the policy (from `archive`) and the reference model
+    (from `reference_archive` if given, else from `archive`). No-op when `archive`
+    is None. A separate reference archive lets a trained policy be evaluated against
+    its SFT reference (e.g. re-scoring saved checkpoints)."""
+    if archive is None:
+        return
+    state_dict = torch.load(archive, map_location='cpu')
+    step, metrics = state_dict['step_idx'], state_dict['metrics']
+    print(f'loading pre-trained weights at step {step} from {archive} with metrics {json.dumps(metrics, indent=2)}')
+    policy_model.load_state_dict(state_dict['state'])
+    if reference_archive is None:
+        ref_model.load_state_dict(state_dict['state'])
+    else:
+        ref_state = torch.load(reference_archive, map_location='cpu')
+        print(f'loading REFERENCE weights at step {ref_state["step_idx"]} from {reference_archive}')
+        ref_model.load_state_dict(ref_state['state'])
+    print('Loaded pretrained weights')
