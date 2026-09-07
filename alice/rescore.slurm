@@ -38,5 +38,5 @@ python3 train.py model=llama2-7b-chat-hf datasets=[ufb-2rm] \
     trainer=BasicTrainer sample_during_eval=false \
     "local_dirs=[$HOME/nsdpo-cache]" ++wandb.enabled=false ++test_dataset=false \
     ++dataset.path_train=$DATA/tcp${TCP}_rho${RHO}_train.pkl \
-    ++dataset.path_test=$DATA/tcp${TCP}_rho${RHO}_test.pkl 2>&1 | grep -aE "eval after 0|Loaded .* eval batches|Traceback|Error"
+    ++dataset.path_test=$DATA/tcp${TCP}_rho${RHO}_test.pkl 2>&1 | grep --line-buffered -aE "eval after 0|Loaded .* eval batches|REFERENCE|Traceback|Error"
 echo "RESCORE_DONE run=$RUN"
